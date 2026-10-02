@@ -1,0 +1,49 @@
+services:
+  # Consul
+  consul:
+    image: hashicorp/consul
+    ports:
+      - "8500:8500"
+    command: agent -dev -client 0.0.0.0
+
+  # Nginx
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - auth
+      - catalog-1
+      - catalog-2
+
+  # Auth
+  auth:
+    build: ./auth_service
+    environment:
+      INSTANCE_NAME: "auth"
+      PORT: "8081"
+      CONSUL_ADDR: "consul:8500"
+    depends_on:
+      - consul
+
+  # Catalog-1
+  catalog-1:
+    build: ./catalog_service
+    environment:
+      INSTANCE_NAME: "catalog-1"
+      PORT: "8082"
+      CONSUL_ADDR: "consul:8500"
+    depends_on:
+      - consul
+
+  # Catalog-2
+  catalog-2:
+    build: ./catalog_service
+    environment:
+      INSTANCE_NAME: "catalog-2"
+      PORT: "8083"
+      CONSUL_ADDR: "consul:8500"
+    depends_on:
+      - consul
