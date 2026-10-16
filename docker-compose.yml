@@ -17,6 +17,8 @@ services:
       - auth
       - catalog-1
       - catalog-2
+      - order
+      - graphql
 
   # Auth
   auth:
@@ -47,3 +49,21 @@ services:
       CONSUL_ADDR: "consul:8500"
     depends_on:
       - consul
+
+  order:
+    build: ./order_service
+    environment:
+      INSTANCE_NAME: "order"
+      PORT: "8084"
+      CONSUL_ADDR: "consul:8500"
+    depends_on:
+      - consul
+
+  graphql:
+    build: ./graphql_gateway
+    environment:
+      PORT: "8085"
+    depends_on:
+      - order
+      - catalog-1
+      - catalog-2

@@ -1,0 +1,149 @@
+basePath: /api/catalog
+definitions:
+  main.Product:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+      price:
+        type: number
+    required:
+    - name
+    - price
+    type: object
+host: localhost
+info:
+  contact: {}
+  description: API для управления товарами
+  title: Catalog Service API
+  version: "1.0"
+paths:
+  /products:
+    get:
+      description: Возвращает список всех товаров
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Получить список товаров
+      tags:
+      - catalog
+    post:
+      consumes:
+      - application/json
+      description: Добавляет новый товар
+      parameters:
+      - description: Данные товара
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/main.Product'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Создать товар
+      tags:
+      - catalog
+  /products/{id}:
+    delete:
+      description: Удаляет товар по ID
+      parameters:
+      - description: ID товара
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Удалить товар
+      tags:
+      - catalog
+    get:
+      description: Возвращает один товар
+      parameters:
+      - description: ID товара
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Получить товар по ID
+      tags:
+      - catalog
+    put:
+      consumes:
+      - application/json
+      description: Обновляет существующий товар
+      parameters:
+      - description: ID товара
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Данные товара
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/main.Product'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Обновить товар
+      tags:
+      - catalog
+swagger: "2.0"

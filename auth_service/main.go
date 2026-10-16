@@ -1,3 +1,8 @@
+// @title Auth Service API
+// @version 1.0
+// @description API для регистрации и входа пользователей
+// @host localhost
+// @BasePath /
 package main
 
 import (
@@ -7,9 +12,13 @@ import (
 	"sync"
 	"time"
 
+	_ "auth_service/docs"
+
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/hashicorp/consul/api"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -19,10 +28,20 @@ var users = make(map[string]string)
 var usersMutex sync.Mutex
 
 type AuthRequest struct {
-	Username string `json: "username" binding:"required"`
-	Password string `json: "password" binding:"required"`
+	Username string `json:"username" binding:"required"`
+	Password string `json:"password" binding:"required"`
 }
 
+// Register godoc
+// @Summary Регистрация пользователя
+// @Description Создаёт нового пользователя
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body AuthRequest true "Данные пользователя"
+// @Success 201 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Failure 409 {object} map[string]string
 func register(c *gin.Context) {
 	var req AuthRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -48,6 +67,17 @@ func register(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"message": "Пользователь создан"})
 }
 
+// Login godoc
+// @Summary Вход пользователя
+// @Description Проверяет логин/пароль и возвращает JWT
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body AuthRequest true "Данные пользователя"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Router /login [post]
 func login(c *gin.Context) {
 	var req AuthRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -119,6 +149,15 @@ func authMiddleware() gin.HandlerFunc {
 	}
 }
 
+// Me godoc
+// @Summary Получить информацию о текущем пользователе
+// @Description Возвращает username из JWT-токена
+// @Tags auth
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Router /me [get]
 func me(c *gin.Context) {
 	username, _ := c.Get("username")
 	c.JSON(http.StatusOK, gin.H{
@@ -196,5 +235,7 @@ func main() {
 		port = "8081"
 	}
 
+	// Swagger UI
+	r.GET("/api-docs/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	r.Run(":" + port)
 }
