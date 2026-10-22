@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 	"os"
@@ -13,15 +14,19 @@ import (
 )
 
 type OrderItem struct {
-	ProductID string `json:"product_id" binding:"required"`
-	Quantity  int    `json:"quantity" binding:"required"`
+	ProductID string  `json:"product_id" binding:"required"`
+	Quantity  int     `json:"quantity" binding:"required"`
+	Price     float64 `json:"price"`
 }
 
 type Order struct {
-	ID        string      `json:"id"`
-	UserID    string      `json:"user_id" binding:"required"`
-	CreatedAt string      `json:"created_at"`
-	Items     []OrderItem `json:"items" binding:"required"`
+	ID            string      `json:"id"`
+	UserID        string      `json:"user_id" binding:"required"`
+	CreatedAt     string      `json:"created_at"`
+	Items         []OrderItem `json:"items" binding:"required"`
+	Status        string      `json:"status"`
+	TotalAmount   float64     `json:"total_amount"`
+	TransactionID string      `json:"transaction_id"`
 }
 
 var orders = make(map[string]Order)
@@ -80,10 +85,24 @@ func createOrder(c *gin.Context) {
 
 	order.ID = uuid.New().String()
 	order.CreatedAt = time.Now().Format(time.RFC3339)
+	order.Status = "PENDING"
+
+	order.TotalAmount = 0
+	for _, item := range order.Items {
+		order.TotalAmount += item.Price * float64(item.Quantity)
+	}
 
 	ordersMutex.Lock()
 	orders[order.ID] = order
 	ordersMutex.Unlock()
+
+	publishEvent("order_created", OrderCreatedEvent{
+		OrderID:     order.ID,
+		UserID:      order.UserID,
+		Items:       order.Items,
+		TotalAmount: order.TotalAmount,
+		CreatedAt:   order.CreatedAt,
+	})
 
 	c.JSON(http.StatusCreated, gin.H{
 		"instance_id": instanceID,
@@ -144,6 +163,45 @@ func registerInConsul() {
 
 func main() {
 	registerInConsul()
+	connectRabbitMQ()
+	//подписка на PaymentCompleted
+	subscribeToQueue("payment_completed", func(body []byte) {
+		var event PaymentCompletedEvent
+		if err := json.Unmarshal(body, &event); err != nil {
+			log.Println("Ошибка парсинга PaymentCompleted:", err)
+			return
+		}
+
+		ordersMutex.Lock()
+		if order, ok := orders[event.OrderID]; ok {
+			order.Status = "CONFIRMED"
+			order.TransactionID = event.TransactionID
+			orders[event.OrderID] = order
+			log.Printf("Заказ %s CONFIRMED\n", event.OrderID)
+		}
+		ordersMutex.Unlock()
+	})
+
+	//подписка на PaymentFailed (компенсация)
+	subscribeToQueue("payment_failed", func(body []byte) {
+		var event PaymentFailedEvent
+		if err := json.Unmarshal(body, &event); err != nil {
+			log.Println("Ошибка парсинга PaymentCompleted:", err)
+			return
+		}
+
+		ordersMutex.Lock()
+		if order, ok := orders[event.OrderID]; ok {
+			order.Status = "CANCELLED"
+			orders[event.OrderID] = order
+			log.Printf("Заказ %s CANCELLED по причине %s\n", event.OrderID, event.Reason)
+		}
+		ordersMutex.Unlock()
+
+		publishEvent("order_cancelled", map[string]string{
+			"orderId": event.OrderID,
+		})
+	})
 
 	r := gin.Default()
 

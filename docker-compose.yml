@@ -56,8 +56,10 @@ services:
       INSTANCE_NAME: "order"
       PORT: "8084"
       CONSUL_ADDR: "consul:8500"
+      RABBITMQ_URL: "amqp://guest:guest@rabbitmq:5672/"
     depends_on:
       - consul
+      - rabbitmq
 
   graphql:
     build: ./graphql_gateway
@@ -67,3 +69,28 @@ services:
       - order
       - catalog-1
       - catalog-2
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"      # порт для клиентов (сервисы)
+      - "15672:15672"    # порт для Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+
+  payment:
+    build: ./payment_service
+    environment:
+      PORT: "8086"
+      RABBITMQ_URL: "amqp://guest:guest@rabbitmq:5672/"
+    depends_on:
+      - rabbitmq
+
+  notification:
+    build: ./notification_service
+    environment:
+      PORT: "8087"
+      RABBITMQ_URL: "amqp://guest:guest@rabbitmq:5672/"
+    depends_on:
+      - rabbitmq
