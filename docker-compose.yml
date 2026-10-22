@@ -83,14 +83,18 @@ services:
     build: ./payment_service
     environment:
       PORT: "8086"
+      CONSUL_ADDR: "consul:8500"
       RABBITMQ_URL: "amqp://guest:guest@rabbitmq:5672/"
     depends_on:
+      - consul
       - rabbitmq
 
   notification:
     build: ./notification_service
     environment:
       PORT: "8087"
+      CONSUL_ADDR: "consul:8500"
       RABBITMQ_URL: "amqp://guest:guest@rabbitmq:5672/"
     depends_on:
+      - consul
       - rabbitmq

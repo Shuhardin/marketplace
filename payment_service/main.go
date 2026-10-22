@@ -7,11 +7,61 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/hashicorp/consul/api"
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
+// Функция регистрации в Consul
+func registerInConsul() {
+	consulAddr := os.Getenv("CONSUL_ADDR")
+	if consulAddr == "" {
+		consulAddr = "localhost:8500"
+	}
+
+	config := api.DefaultConfig()
+	config.Address = consulAddr
+
+	client, err := api.NewClient(config)
+	if err != nil {
+		log.Println("Не удалось подключиться к Consul:", err)
+		return
+	}
+
+	name := os.Getenv("INSTANCE_NAME")
+	if name == "" {
+		name = "payment"
+	}
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8086"
+	}
+
+	registration := &api.AgentServiceRegistration{
+		ID:      name,
+		Name:    "payment",
+		Address: name,
+		Port:    8086,
+		Check: &api.AgentServiceCheck{
+			HTTP:     "http://" + name + ":" + port + "/health",
+			Interval: "10s",
+			Timeout:  "5s",
+		},
+	}
+
+	err = client.Agent().ServiceRegister(registration)
+	if err != nil {
+		log.Println("Ошибка регистрации в Consul:", err)
+		return
+	}
+
+	log.Println("Зарегистрирован в Consul как", name)
+}
+
 func main() {
+	registerInConsul()
 	connectRabbitMQ()
 
 	//подписка на очередь OrderCreated
